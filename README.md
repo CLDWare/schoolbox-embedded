@@ -1,0 +1,1 @@
+# SchoolBox-apparaatje-Software
