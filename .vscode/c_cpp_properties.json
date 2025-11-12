@@ -10,6 +10,7 @@
             "includePath": [
                 "/home/jsw/Documents/schoolbox-embedded/include",
                 "/home/jsw/Documents/schoolbox-embedded/src",
+                "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                 "/home/jsw/Documents/schoolbox-embedded/.pio/libdeps/esp32-c3-devkitm-1/ArduinoJson/src",
                 "/home/jsw/Documents/schoolbox-embedded/.pio/libdeps/esp32-c3-devkitm-1/WebSockets/src",
                 "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
@@ -226,7 +227,6 @@
                 "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/Insights/src",
                 "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/LittleFS/src",
                 "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/NetBIOS/src",
-                "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                 "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/RainMaker/src",
                 "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/SD/src",
                 "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/SD_MMC/src",
@@ -245,6 +245,7 @@
                 "path": [
                     "/home/jsw/Documents/schoolbox-embedded/include",
                     "/home/jsw/Documents/schoolbox-embedded/src",
+                    "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                     "/home/jsw/Documents/schoolbox-embedded/.pio/libdeps/esp32-c3-devkitm-1/ArduinoJson/src",
                     "/home/jsw/Documents/schoolbox-embedded/.pio/libdeps/esp32-c3-devkitm-1/WebSockets/src",
                     "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
@@ -461,7 +462,6 @@
                     "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/Insights/src",
                     "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/LittleFS/src",
                     "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/NetBIOS/src",
-                    "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                     "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/RainMaker/src",
                     "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/SD/src",
                     "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/SD_MMC/src",
