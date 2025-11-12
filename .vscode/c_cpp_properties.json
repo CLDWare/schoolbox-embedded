@@ -10,6 +10,7 @@
             "includePath": [
                 "/home/jsw/Documents/schoolbox-embedded/include",
                 "/home/jsw/Documents/schoolbox-embedded/src",
+                "/home/jsw/Documents/schoolbox-embedded/.pio/libdeps/esp32-c3-devkitm-1/ArduinoJson/src",
                 "/home/jsw/Documents/schoolbox-embedded/.pio/libdeps/esp32-c3-devkitm-1/WebSockets/src",
                 "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
                 "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/Ethernet/src",
@@ -244,6 +245,7 @@
                 "path": [
                     "/home/jsw/Documents/schoolbox-embedded/include",
                     "/home/jsw/Documents/schoolbox-embedded/src",
+                    "/home/jsw/Documents/schoolbox-embedded/.pio/libdeps/esp32-c3-devkitm-1/ArduinoJson/src",
                     "/home/jsw/Documents/schoolbox-embedded/.pio/libdeps/esp32-c3-devkitm-1/WebSockets/src",
                     "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
                     "/home/jsw/.platformio/packages/framework-arduinoespressif32/libraries/Ethernet/src",
