@@ -40,26 +40,46 @@ WebSocket::WebSocket(String address, int port, String path) {
   if (this->registered) {
     this->id = pref.getString("id");
     this->password = pref.getString("password");
-  } 
+  }
   pref.end();
 }
 
 void WebSocket::connect() { ws.begin(address, port, path); }
+void WebSocket::loop() { ws.loop(); }
 void WebSocket::reconnect() {
   ws.disconnect();
   delay(1000);
   this->connect();
 }
-void WebSocket::loop() { ws.loop(); }
 void WebSocket::reset() {
   this->state = WSState::PREAUTH;
   this->pin = 0;
   this->sessionQuestion = "";
 }
+void WebSocket::vote(uint8_t vote) {
+  if (!this->ws.isConnected() || this->state != WSState::SESSION) {
+    Serial.println("[WSc] tried to vote while I'm not in a session. Aborting.");
+    return;
+  }
+
+  JsonDocument doc;
+  String output;
+  doc["c"] = "session_vote";
+  doc["d"]["vote"] = vote;
+
+  serializeJson(doc, output);
+  this->ws.sendTXT(output);
+}
 
 void WebSocket::wsHandler(WStype_t type, uint8_t *payload, size_t length) {
   switch (type) {
+  case WStype_DISCONNECTED:
+    Serial.printf("[WSc] Disconnected!\n");
+    break;
+
   case WStype_TEXT: {
+    Serial.println((char *)payload);
+
     JsonDocument doc;
     DeserializationError error;
     deserializeJson(doc, payload);
@@ -70,18 +90,14 @@ void WebSocket::wsHandler(WStype_t type, uint8_t *payload, size_t length) {
       break;
     }
 
-    Serial.println((char *)payload);
-
-    const char *c = doc["c"];
-    int e = doc["e"] | -1;
-
-    if (e != -1) {
+    if (doc["e"].is<int>()) {
+      int e = doc["e"];
       Serial.print("[WSc] Invalid message: ");
       Serial.printf("ERROR %d.\n", e);
       Serial.println((char *)payload);
       // Server will drop connection if something horrible wrong, I hope.
       break;
-    } else if (c == nullptr) {
+    } else if (!doc["c"].is<String>()) {
       Serial.print("[WSc] Invalid message: ");
       Serial.println("missing command.");
     }
@@ -90,9 +106,6 @@ void WebSocket::wsHandler(WStype_t type, uint8_t *payload, size_t length) {
     break;
   }
 
-  case WStype_DISCONNECTED:
-    Serial.printf("[WSc] Disconnected!\n");
-    break;
   case WStype_CONNECTED:
     Serial.printf("[WSc] Connected to url: %s\n", payload);
     reset();
@@ -101,7 +114,7 @@ void WebSocket::wsHandler(WStype_t type, uint8_t *payload, size_t length) {
       JsonDocument doc;
       String output;
 
-      Serial.println("starting auth: ");
+      Serial.println("[WSc] starting auth.");
       Serial.println(this->id);
 
       doc["c"] = "auth_start";
@@ -117,6 +130,7 @@ void WebSocket::wsHandler(WStype_t type, uint8_t *payload, size_t length) {
     }
 
     break;
+
   case WStype_BIN:
   case WStype_ERROR:
   case WStype_FRAGMENT_TEXT_START:
@@ -129,10 +143,6 @@ void WebSocket::wsHandler(WStype_t type, uint8_t *payload, size_t length) {
 
 void WebSocket::messageHandler(JsonDocument json) {
   const char *cmd = json["c"];
-
-  Serial.print("Message received, command: '");
-  Serial.println(cmd);
-
 
   if (!strcmp(cmd, "ping")) {
     this->ws.sendTXT("{\"c\": \"pong\"}");

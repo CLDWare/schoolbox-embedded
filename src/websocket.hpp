@@ -31,6 +31,7 @@ class WebSocket {
         void connect();
         void loop();
         void reconnect();
+        void vote(uint8_t vote);
 
     private:
         void wsHandler(WStype_t type, uint8_t * payload, size_t length);
