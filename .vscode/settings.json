@@ -14,5 +14,6 @@
     "--background-index",
     "--query-driver=/home/jsw/.espressif/tools/riscv32-esp-elf/esp-14.2.0_20241119/riscv32-esp-elf/bin/riscv32-esp-elf-gcc",
     "--compile-commands-dir=/home/jsw/Documents/schoolbox-embedded/build"
-  ]
+  ],
+  "C_Cpp.errorSquiggles": "disabled"
 }
