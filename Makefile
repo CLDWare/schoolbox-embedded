@@ -4,7 +4,7 @@ updatedb:
 build:
 	pio run
 
-run:
+upload:
 	pio run --target upload
 
 clean:
@@ -12,3 +12,6 @@ clean:
 
 monitor:
 	pio device monitor
+
+run: upload monitor
+
