@@ -1,7 +1,6 @@
 #include <websocket.hpp>
 
-Preferences pref;
-const char *PREFERENCE_STORE = "cldWare";
+const char *PREF_STORE = "cldWare"; // FIXME
 
 const char *generateHMAC(const char *key, const char *data) {
   static char out[65];
@@ -25,37 +24,36 @@ const char *generateHMAC(const char *key, const char *data) {
   return out;
 }
 
-WebSocket::WebSocket(String address, int port, String path) {
+WebSocket::WebSocket(String address, int port, String path,
+                     Preferences *prefs) {
   this->address = address;
   this->port = port;
   this->path = path;
+  this->prefs = prefs;
 
-  ws.setReconnectInterval(5000);
-  ws.disableHeartbeat();
-  ws.onEvent([this](WStype_t t, uint8_t *p, size_t l) { wsHandler(t, p, l); });
+  this->ws.setReconnectInterval(5000);
+  this->ws.disableHeartbeat();
+  this->ws.onEvent(
+      [this](WStype_t t, uint8_t *p, size_t l) { wsHandler(t, p, l); });
 
-  pref.begin(PREFERENCE_STORE, false);
-  this->registered = pref.isKey("registered");
+  this->registered = false; // will be read at init.
+}
+void WebSocket::init() {
+  Preferences *prefs = this->prefs;
 
+  prefs->begin(PREF_STORE);
+  this->registered = prefs->isKey("id") && prefs->isKey("password");
   if (this->registered) {
-    this->id = pref.getString("id");
-    this->password = pref.getString("password");
+    this->id = prefs->getString("id");
+    this->password = prefs->getString("password");
   }
-  pref.end();
+  this->prefs->end();
 }
 
-void WebSocket::connect() { ws.begin(address, port, path); }
-void WebSocket::loop() { ws.loop(); }
-void WebSocket::reconnect() {
-  ws.disconnect();
-  delay(1000);
-  this->connect();
-}
-void WebSocket::reset() {
-  this->state = WSState::PREAUTH;
-  this->pin = 0;
-  this->sessionQuestion = "";
-}
+void WebSocket::connect() { this->ws.begin(address, port, path); }
+void WebSocket::loop() { this->ws.loop(); }
+void WebSocket::disconnect() { this->ws.disconnect(); }
+
 void WebSocket::vote(uint8_t vote) {
   if (!this->ws.isConnected() || this->state != WSState::SESSION) {
     Serial.println("[WSc] tried to vote while I'm not in a session. Aborting.");
@@ -67,19 +65,30 @@ void WebSocket::vote(uint8_t vote) {
   doc["c"] = "session_vote";
   doc["d"]["vote"] = vote;
 
+  doc.shrinkToFit();
   serializeJson(doc, output);
   this->ws.sendTXT(output);
 }
 
 void WebSocket::wsHandler(WStype_t type, uint8_t *payload, size_t length) {
   switch (type) {
-  case WStype_DISCONNECTED:
-    Serial.printf("[WSc] Disconnected!\n");
+  case WStype_CONNECTED: {
+    Serial.printf("[WSc] Connected to url: %s\n", payload);
+
+    this->state = WSState::PREAUTH;
+    this->pin = 0;
+    this->sessionQuestion = "";
+
+    if (this->registered) {
+      this->authenticate();
+    } else {
+      this->registrate();
+    }
+
     break;
+  }
 
   case WStype_TEXT: {
-    Serial.println((char *)payload);
-
     JsonDocument doc;
     DeserializationError error;
     deserializeJson(doc, payload);
@@ -92,60 +101,76 @@ void WebSocket::wsHandler(WStype_t type, uint8_t *payload, size_t length) {
 
     if (doc["e"].is<int>()) {
       int e = doc["e"];
-      Serial.print("[WSc] Invalid message: ");
+      String info = doc["d"]["info"] | "no message";
+      Serial.print("[WSc] Error: ");
       Serial.printf("ERROR %d.\n", e);
       Serial.println((char *)payload);
+      this->errorHandler(e, info);
       // Server will drop connection if something horrible wrong, I hope.
       break;
     } else if (!doc["c"].is<String>()) {
-      Serial.print("[WSc] Invalid message: ");
-      Serial.println("missing command.");
+      Serial.println("[WSc] Invalid message: missing command");
     }
 
     this->messageHandler(doc);
     break;
   }
 
-  case WStype_CONNECTED:
-    Serial.printf("[WSc] Connected to url: %s\n", payload);
-    reset();
+  case WStype_DISCONNECTED:
+    Serial.printf("[WSc] Disconnected!\n");
+    break;
+  default:
+    break;
+  }
+}
 
-    if (this->registered) {
-      JsonDocument doc;
-      String output;
+void WebSocket::authenticate() {
+  JsonDocument doc;
+  String output;
 
-      Serial.println("[WSc] starting auth.");
-      Serial.println(this->id);
+  Serial.println("[WSc] Starting auth.");
+  Serial.println(this->id);
 
-      doc["c"] = "auth_start";
-      doc["d"]["id"] = this->id;
-      doc.shrinkToFit();
+  doc["c"] = "auth_start";
+  doc["d"]["id"] = this->id;
+  doc.shrinkToFit();
 
-      serializeJson(doc, output);
-      this->ws.sendTXT(output);
-      this->state = WSState::AUTHENTICATING;
-    } else {
-      this->ws.sendTXT("{\"c\": \"reg_start\"}");
-      this->state = WSState::REGISTRATING;
-    }
+  serializeJson(doc, output);
+  this->ws.sendTXT(output);
+  this->state = WSState::AUTHENTICATING;
+}
+void WebSocket::registrate() {
+  this->ws.sendTXT("{\"c\": \"reg_start\"}");
+  this->state = WSState::REGISTRATING;
+}
 
+void WebSocket::errorHandler(int ecode, String message) {
+  switch (ecode) {
+  // TODO: workign on this.
+  case 2: // dev server invalid id
+  case 3: // dev server invalid signature
+    Serial.println("[WSc] Failed to authenticate! CRITICAL \n[WSc] Please "
+                   "manually restart the device");
+    while (true)
+      ;
     break;
 
-    default:
-      break;
+  default:
+    break;
   }
 }
 
 void WebSocket::messageHandler(JsonDocument json) {
   const char *cmd = json["c"];
 
+  /// PING
   if (!strcmp(cmd, "ping")) {
     this->ws.sendTXT("{\"c\": \"pong\"}");
   } else if (!strcmp(cmd, "reg_pin")) {
     if (this->state != WSState::REGISTRATING) {
       Serial.println("[WSc] Received websocket registration command, while I'm "
                      "not registrating. Resetting websocket.");
-      this->reconnect();
+      this->disconnect();
       return;
     }
 
@@ -153,17 +178,18 @@ void WebSocket::messageHandler(JsonDocument json) {
     if (this->pin == 0) {
       Serial.println("[WSc] Received registration pin command, but it didn't "
                      "contain a pin. Resetting websocket.");
-      this->reconnect();
+      this->disconnect();
       return;
     }
 
     Serial.print("[WSc] Registration started, pin:");
     Serial.println(pin);
   } else if (!strcmp(cmd, "reg_ok")) {
+    /// REG_OK
     if (this->state != WSState::REGISTRATING) {
       Serial.println("[WSc] Received websocket registration command, while I'm "
                      "not registrating. Resetting websocket.");
-      this->reconnect();
+      this->disconnect();
       return;
     }
 
@@ -173,33 +199,30 @@ void WebSocket::messageHandler(JsonDocument json) {
     if (!vId.is<String>() || !vPassword.is<String>()) {
       Serial.println("[WSc] Received registration ok command, but it didn't "
                      "contain an id/passwd. Resetting websocket.");
-      this->reconnect();
+      this->disconnect();
       return;
     }
 
     String id = vId.as<String>();
     String password = vPassword.as<String>();
+    Preferences *prefs = this->prefs;
 
-    pref.begin(PREFERENCE_STORE, false);
-    pref.putString("id", id);
-    pref.putString("password", password);
-    pref.putBool("registered", true);
-    pref.end();
+    prefs->begin(PREF_STORE);
+    prefs->putString("id", id);
+    prefs->putString("password", password);
+    prefs->end();
 
     this->id = id;
     this->password = password;
     this->registered = true;
 
-    Serial.println("Ooh fancy, id and password");
-    Serial.print(this->id);
-    Serial.print(this->password);
-
-    this->reconnect();
+    this->disconnect();
   } else if (!strcmp(cmd, "auth_nonce")) {
+    /// AUTH_NONCE
     if (this->state != WSState::AUTHENTICATING) {
       Serial.println("[WSc] Received websocket authentication command, while "
                      "I'm not authenticating. Resetting websocket.");
-      this->reconnect();
+      this->disconnect();
       return;
     }
 
@@ -207,7 +230,7 @@ void WebSocket::messageHandler(JsonDocument json) {
     if (nonce == nullptr) {
       Serial.println("[WSc] Received auth nonce command, but it didn't "
                      "contain a nonce. Resetting websocket.");
-      this->reconnect();
+      this->disconnect();
       return;
     }
 
@@ -227,10 +250,11 @@ void WebSocket::messageHandler(JsonDocument json) {
 
     ws.sendTXT(output);
   } else if (!strcmp(cmd, "auth_ok")) {
+    /// AUTH_OK
     if (this->state != WSState::AUTHENTICATING) {
       Serial.println("[WSc] Received websocket authentication command, while "
                      "I'm not authenticating. Resetting websocket.");
-      this->reconnect();
+      this->disconnect();
       return;
     }
     this->state = WSState::AUTHENTICATED;
@@ -238,10 +262,11 @@ void WebSocket::messageHandler(JsonDocument json) {
     Serial.println("[WSc] Authenticated!");
     return;
   } else if (!strcmp(cmd, "session_start")) {
+    /// SESSION_START
     if (this->state != WSState::AUTHENTICATED) {
       Serial.println("[WSc] Received websocket session command, while "
-                     "I'm not authenticated. Resetting websocket.");
-      this->reconnect();
+                     "I'm not authenticated/idle. Resetting websocket.");
+      this->disconnect();
       return;
     }
     this->state = WSState::SESSION;
@@ -259,10 +284,11 @@ void WebSocket::messageHandler(JsonDocument json) {
     // TODO: update display
     return;
   } else if (!strcmp(cmd, "session_stop")) {
+    /// SESSION_STOP
     if (this->state != WSState::SESSION) {
       Serial.println("[WSc] Received websocket stopsession command, while "
                      "I'm not in a session. Resetting websocket.");
-      this->reconnect();
+      this->disconnect();
       return;
     }
 
