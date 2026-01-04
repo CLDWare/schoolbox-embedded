@@ -35,8 +35,8 @@ void setup() {
   setupButtons(buttons);
   for (int i = 0; i < buttonAmount; i++) {
     buttons[i].setTapHandler([i](Button2& btn) {
-      Serial.printf("vote! %d\n", i);
-      ws.vote(i + 1);
+      Serial.printf("vote! %d\n", i+1);
+      ws.vote(i+1);
     });
   }
 

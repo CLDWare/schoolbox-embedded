@@ -21,8 +21,8 @@ class WebSocket {
     String sessionQuestion;
 
     bool registered = false;
-    String id;
     String password;
+    int id;
     int pin;
 
     WSState state;

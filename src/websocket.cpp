@@ -44,7 +44,7 @@ void WebSocket::init() {
   prefs->begin(PREF_STORE);
   this->registered = prefs->isKey("id") && prefs->isKey("password");
   if (this->registered) {
-    this->id = prefs->getString("id");
+    this->id = prefs->getInt("id");
     this->password = prefs->getString("password");
   }
   this->prefs->end();
@@ -110,7 +110,11 @@ void WebSocket::wsHandler(WStype_t type, uint8_t *payload, size_t length) {
       break;
     } else if (!doc["c"].is<String>()) {
       Serial.println("[WSc] Invalid message: missing command");
+      Serial.printf("%s", (const char*) payload);
+      break;
     }
+
+    Serial.printf("%s", (const char*) payload);
 
     this->messageHandler(doc);
     break;
@@ -194,21 +198,21 @@ void WebSocket::messageHandler(JsonDocument json) {
     }
 
     JsonVariant vId = json["d"]["id"];
-    JsonVariant vPassword = json["d"]["password"];
+    JsonVariant vPassword = json["d"]["token"];
 
-    if (!vId.is<String>() || !vPassword.is<String>()) {
+    if (!vId.is<int>() || !vPassword.is<String>()) {
       Serial.println("[WSc] Received registration ok command, but it didn't "
                      "contain an id/passwd. Resetting websocket.");
       this->disconnect();
       return;
     }
 
-    String id = vId.as<String>();
+    int id = vId.as<int>();
     String password = vPassword.as<String>();
     Preferences *prefs = this->prefs;
 
     prefs->begin(PREF_STORE);
-    prefs->putString("id", id);
+    prefs->putInt("id", id);
     prefs->putString("password", password);
     prefs->end();
 
