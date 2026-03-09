@@ -2,6 +2,17 @@
 
 const char *PREF_STORE = "cldWare"; // FIXME
 
+void WebSocket::resetLCD(bool backlight) {
+  this->lcd->clear();
+  this->lcd->setCursor(0,0);
+
+  if (backlight) {
+    this->lcd->backlight();
+  } else {
+    this->lcd->noBacklight();
+  }
+}
+
 const char *generateHMAC(const char *key, const char *data) {
   static char out[65];
   mbedtls_md_context_t ctx;
@@ -25,11 +36,12 @@ const char *generateHMAC(const char *key, const char *data) {
 }
 
 WebSocket::WebSocket(String address, int port, String path,
-                     Preferences *prefs) {
+                     Preferences *prefs, LiquidCrystal_I2C* lcd) {
   this->address = address;
   this->port = port;
   this->path = path;
   this->prefs = prefs;
+  this->lcd = lcd;
 
   this->ws.setReconnectInterval(5000);
   this->ws.disableHeartbeat();
@@ -74,6 +86,8 @@ void WebSocket::wsHandler(WStype_t type, uint8_t *payload, size_t length) {
   switch (type) {
   case WStype_CONNECTED: {
     Serial.printf("[WSc] Connected to url: %s\n", payload);
+
+    this->resetLCD();
 
     this->state = WSState::PREAUTH;
     this->pin = 0;
@@ -122,6 +136,10 @@ void WebSocket::wsHandler(WStype_t type, uint8_t *payload, size_t length) {
 
   case WStype_DISCONNECTED:
     Serial.printf("[WSc] Disconnected!\n");
+
+    this->resetLCD();
+    lcd->print("Disconnected.");
+
     break;
   default:
     break;
@@ -188,6 +206,12 @@ void WebSocket::messageHandler(JsonDocument json) {
 
     Serial.print("[WSc] Registration started, pin:");
     Serial.println(pin);
+
+    this->resetLCD(true);
+    this->lcd->print("Registration pin:");
+    this->lcd->setCursor(0,1);
+    this->lcd->print(pin);
+
   } else if (!strcmp(cmd, "reg_ok")) {
     /// REG_OK
     if (this->state != WSState::REGISTRATING) {
@@ -260,6 +284,7 @@ void WebSocket::messageHandler(JsonDocument json) {
                      "I'm not authenticating. Resetting websocket.");
       this->disconnect();
       return;
+        // TODO: update display}
     }
     this->state = WSState::AUTHENTICATED;
 
@@ -285,7 +310,10 @@ void WebSocket::messageHandler(JsonDocument json) {
     this->sessionQuestion = String(question);
     Serial.print("[WSc] Started session with text: ");
     Serial.println(this->sessionQuestion);
-    // TODO: update display
+
+    this->resetLCD(true);
+    this->lcd->println(question);
+
     return;
   } else if (!strcmp(cmd, "session_stop")) {
     /// SESSION_STOP
@@ -298,8 +326,9 @@ void WebSocket::messageHandler(JsonDocument json) {
 
     this->state = WSState::AUTHENTICATED;
     this->sessionQuestion = "";
+    this->resetLCD(false);
 
     Serial.print("[WSc] Stopped session.");
     return;
-  }
-}
+  };
+};

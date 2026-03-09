@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <esp_wifi.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <WiFiMulti.h>
@@ -8,13 +9,15 @@
 #include <menu.hpp>
 #include "secrets.h"
 #include "esp_log.h"
+#include <LiquidCrystal_I2C.h>
 
 WiFiMulti wifiMulti;
 Preferences prefs;
-WebSocket ws = WebSocket(WS_ADDR, WS_PORT, WS_PATH, &prefs);
+LiquidCrystal_I2C lcd(0x27,20,4);  
 Menu menu;
+WebSocket ws = WebSocket(WS_ADDR, WS_PORT, WS_PATH, &prefs, &lcd);
 
-const size_t buttonAmount = sizeof(VOTE_BUTTONS) / sizeof(VOTE_BUTTONS[0]);
+const int buttonAmount = sizeof(VOTE_BUTTONS) / sizeof(VOTE_BUTTONS[0]);
 Button2 buttons[buttonAmount];
 
 void (*reset)(void) = 0;
@@ -40,9 +43,14 @@ void setup() {
     });
   }
 
+  Serial.println("[BOOT] Setting up display.");
+  lcd.init();                      // initialize the lcd 
+  lcd.noBacklight();
+  lcd.setCursor(0,0);
 
+  lcd.print("Connecting to wifi..");
   Serial.println("[BOOT] Connecting to wifi...");
-  wifiMulti.addAP(WIFI_SSID, WIFI_PASSWD);
+  wifiMulti.addAP(WIFI_SSID);
 
   for (int i = 10; i > 1; i--) {
     if (wifiMulti.run() == WL_CONNECTED) {
@@ -59,9 +67,11 @@ void setup() {
     } 
     Serial.print(".");
   }
+  lcd.clear();
 
   if (wifiMulti.run() != WL_CONNECTED) {
     Serial.println("[BOOT] Failed to connect to wifi.");
+    delay(200);
     reset();
     return; // for readability, reset stops the program anyway.
   }

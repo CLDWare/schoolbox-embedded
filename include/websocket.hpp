@@ -4,6 +4,7 @@
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <LiquidCrystal_I2C.h>
 
 enum WSState {
     PREAUTH,
@@ -28,9 +29,10 @@ class WebSocket {
     WSState state;
     WebSocketsClient ws;
     Preferences* prefs;
+    LiquidCrystal_I2C* lcd;
 
     public: 
-        WebSocket(String address, int port, String path, Preferences* prefs);
+        WebSocket(String address, int port, String path, Preferences* prefs, LiquidCrystal_I2C* lcd);
         void init();
         void connect();
         void disconnect();
@@ -44,6 +46,8 @@ class WebSocket {
         void wsHandler(WStype_t type, uint8_t * payload, size_t length);
         void messageHandler(JsonDocument json);
         void errorHandler(int ecode, String message);
+        void resetLCD(bool backlight = false);
+
 };
 
 #endif
