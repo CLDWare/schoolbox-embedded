@@ -2,7 +2,7 @@
 #include <esp_wifi.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
-#include <WiFiMulti.h>
+#include <WiFiSTA.h>
 #include "Button2.h"
 
 #include <websocket.hpp>
@@ -11,7 +11,6 @@
 #include "esp_log.h"
 #include <LiquidCrystal_I2C.h>
 
-WiFiMulti wifiMulti;
 Preferences prefs;
 LiquidCrystal_I2C lcd(0x27,20,4);  
 Menu menu;
@@ -21,6 +20,7 @@ const int buttonAmount = sizeof(VOTE_BUTTONS) / sizeof(VOTE_BUTTONS[0]);
 Button2 buttons[buttonAmount];
 
 void (*reset)(void) = 0;
+
 void setup() {
   // esp_log_level_set("*", ESP_LOG_VERBOSE);
   Serial.begin(115200);
@@ -50,10 +50,12 @@ void setup() {
 
   lcd.print("Connecting to wifi..");
   Serial.println("[BOOT] Connecting to wifi...");
-  wifiMulti.addAP(WIFI_SSID);
+
+  WiFi.begin(WIFI_SSID, WIFI_PASSWD);
+  WiFi.setTxPower(WIFI_POWER_8_5dBm); 
 
   for (int i = 10; i > 1; i--) {
-    if (wifiMulti.run() == WL_CONNECTED) {
+    if (WiFi.status() == WL_CONNECTED) {
       Serial.println("[BOOT] Connected to wifi!");
       break;
     }
@@ -69,7 +71,7 @@ void setup() {
   }
   lcd.clear();
 
-  if (wifiMulti.run() != WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[BOOT] Failed to connect to wifi.");
     delay(200);
     reset();
@@ -84,7 +86,7 @@ void setup() {
 }
 
 void loop() {
-  if (wifiMulti.run() != WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[WIFI] Wifi disconnected, restarting.");
     reset();
     return;
