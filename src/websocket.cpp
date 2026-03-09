@@ -312,7 +312,7 @@ void WebSocket::messageHandler(JsonDocument json) {
     Serial.println(this->sessionQuestion);
 
     this->resetLCD(true);
-    this->lcd->println(question);
+    this->lcd->print(question);
 
     return;
   } else if (!strcmp(cmd, "session_stop")) {
